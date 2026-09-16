@@ -1,0 +1,6 @@
+.vers-launch/
+.env
+.DS_Store
+__pycache__/
+.pytest_cache/
+frontend/dist/

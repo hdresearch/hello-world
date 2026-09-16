@@ -1,0 +1,66 @@
+name: vers-hello-world
+
+services:
+  database:
+    build:
+      context: ./database
+    image: hello-world-database:dev
+    environment:
+      BACKEND_TOKEN: ${BACKEND_DATABASE_TOKEN:-local-backend-database-token}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-postgres-password}
+    ports:
+      - "8082:80"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    image: hello-world-backend:dev
+    environment:
+      FRONTEND_TOKEN: ${FRONTEND_BACKEND_TOKEN:-local-frontend-backend-token}
+      DATA_API_URL: http://database
+      DATA_API_TOKEN: ${BACKEND_DATABASE_TOKEN:-local-backend-database-token}
+    ports:
+      - "8081:80"
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1/healthz', timeout=2)"
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    image: hello-world-frontend:dev
+    environment:
+      BACKEND_URL: http://backend
+      BACKEND_TOKEN: ${FRONTEND_BACKEND_TOKEN:-local-frontend-backend-token}
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

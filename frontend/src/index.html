@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A three-service example running on Vers." />
+    <title>Hello World on Vers</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">RUNNING ON VERS</p>
+      <section class="card" aria-labelledby="page-title">
+        <div class="topology" aria-label="Application topology">
+          <span>frontend</span><i></i><span>backend</span><i></i><span>database</span>
+        </div>
+        <h1 id="page-title">Hello, world.<br />From a complete stack.</h1>
+        <p class="lede">
+          This counter travels through three independently imaged computers and
+          persists in PostgreSQL.
+        </p>
+        <div class="counter" aria-live="polite">
+          <span>Persisted visits</span>
+          <strong id="count">—</strong>
+        </div>
+        <button id="increment" type="button">Add a visit</button>
+        <p id="status" class="status">Connecting to the stack…</p>
+      </section>
+    </main>
+  </body>
+</html>

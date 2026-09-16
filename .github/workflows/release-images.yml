@@ -1,0 +1,92 @@
+name: Release service images
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Immutable v-prefixed release tag
+        required: true
+        default: v0.1.0
+        type: string
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.version }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate release tag
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tag must look like v0.1.0" >&2
+            exit 1
+          fi
+      - name: Build and start the complete stack
+        run: docker compose up --build --detach
+      - name: Verify persisted visit round trip
+        run: ./scripts/verify-compose.sh
+      - name: Show service logs after a failure
+        if: failure()
+        run: docker compose logs
+      - name: Stop test stack
+        if: always()
+        run: docker compose down --volumes
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [frontend, backend, database]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v4.2.0
+      - name: Sign in to GHCR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GITHUB_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Refuse to overwrite an existing release
+        env:
+          IMAGE: ghcr.io/hdresearch/hello-world-${{ matrix.service }}
+        run: |
+          if docker buildx imagetools inspect "$IMAGE:$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "$IMAGE:$RELEASE_TAG already exists and is immutable" >&2
+            exit 1
+          fi
+      - name: Build and publish ${{ matrix.service }}
+        id: build
+        uses: docker/build-push-action@v7.3.0
+        with:
+          context: ./${{ matrix.service }}
+          platforms: linux/amd64
+          push: true
+          provenance: mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/hdresearch/hello-world
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ env.RELEASE_TAG }}
+          tags: |
+            ghcr.io/hdresearch/hello-world-${{ matrix.service }}:${{ env.RELEASE_TAG }}
+            ghcr.io/hdresearch/hello-world-${{ matrix.service }}:${{ github.sha }}
+      - name: Record immutable digest
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p release-digests
+          printf '%s\n' "$IMAGE_DIGEST" > "release-digests/${{ matrix.service }}.txt"
+          printf '### %s\n\n`%s`\n' "${{ matrix.service }}" "$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.service }}-image-digest
+          path: release-digests/${{ matrix.service }}.txt
+          if-no-files-found: error
