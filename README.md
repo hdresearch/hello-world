@@ -17,6 +17,11 @@ docker compose up --build -d
 
 Open <http://localhost:8080>.
 
+The database's HTTP gateway runs as the unprivileged `postgres` user and listens
+on port `8080`, configurable through `PORT`. PostgreSQL itself listens on
+`127.0.0.1:5432`. Compose publishes the gateway at <http://localhost:8082> and
+connects the backend to `http://database:8080`.
+
 ## Images
 
 ```text

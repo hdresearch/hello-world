@@ -91,6 +91,11 @@ func (a *application) visits(writer http.ResponseWriter, request *http.Request) 
 }
 
 func main() {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
 	config, err := pgxpool.ParseConfig("postgres://postgres@127.0.0.1:5432/webstack?sslmode=disable")
 	if err != nil {
 		log.Fatal(err)
@@ -108,7 +113,7 @@ func main() {
 	mux.HandleFunc("/healthz", app.health)
 	mux.HandleFunc("/visits", app.visits)
 	server := &http.Server{
-		Addr:              ":80",
+		Addr:              ":" + port,
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
@@ -125,7 +130,7 @@ func main() {
 		_ = server.Shutdown(ctx)
 	}()
 
-	log.Print("database gateway listening on :80")
+	log.Printf("database gateway listening on %s", server.Addr)
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
