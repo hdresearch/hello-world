@@ -9,11 +9,10 @@ services:
       BACKEND_TOKEN: ${BACKEND_DATABASE_TOKEN:-local-backend-database-token}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-postgres-password}
     ports:
-      - "8082:80"
+      - "8082:8080"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
       interval: 2s
       timeout: 2s
       retries: 30
@@ -25,7 +24,7 @@ services:
     image: hello-world-backend:dev
     environment:
       FRONTEND_TOKEN: ${FRONTEND_BACKEND_TOKEN:-local-frontend-backend-token}
-      DATA_API_URL: http://database
+      DATA_API_URL: http://database:8080
       DATA_API_TOKEN: ${BACKEND_DATABASE_TOKEN:-local-backend-database-token}
     ports:
       - "8081:80"
